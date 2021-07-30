@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"os"
 )
@@ -15,6 +17,7 @@ func main() {
 
 	for {
 		conn, err := l.Accept()
+		fmt.Println("new connection", conn)
 		if err != nil {
 			fmt.Println("Error accepting connection: ", err.Error())
 			os.Exit(1)
@@ -24,15 +27,16 @@ func main() {
 }
 
 func handleRequest(conn net.Conn) {
-	// make in go creates an array of a certain allocation
-	buf := make([]byte, 1024)
+	for {
+		data, err := bufio.NewReader(conn).ReadString('\n')
+		if err != nil {
+			if len(data) == 0 && err == io.EOF {
+				conn.Close()
+				break
+			}
+			fmt.Println("Error reading:", err.Error())
+		}
 
-	_, err := conn.Read(buf)
-	if err != nil {
-		fmt.Println("Error reading:", err.Error())
+		conn.Write([]byte("+PONG\r\n"))
 	}
-
-	conn.Write([]byte("+PONG\r\n"))
-
-	conn.Close()
 }
