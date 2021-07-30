@@ -24,6 +24,7 @@ func main() {
 }
 
 func handleRequest(conn net.Conn) {
+	// make in go creates an array of a certain allocation
 	buf := make([]byte, 1024)
 
 	_, err := conn.Read(buf)
