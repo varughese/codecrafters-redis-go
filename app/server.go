@@ -26,22 +26,57 @@ func main() {
 	}
 }
 
+type COMMAND_ID int
+
+const (
+	PONG COMMAND_ID = iota
+	ECHO
+)
+
+type command struct {
+	id      COMMAND_ID
+	content []byte
+}
+
 func handleRequest(conn net.Conn) {
+	defer conn.Close()
 	for {
-		// ReadString reads the data up until a new line.
-		// If there is no new line, it sets err to io.EOF.
-		// In this case, then we close the connection.
-		data, err := bufio.NewReader(conn).ReadString('\n')
-		fmt.Println("READING", data)
-		if err != nil {
-			if len(data) == 0 && err == io.EOF {
+		msg, err := parseConnection(conn)
+		if len(msg) == 0 || err != nil {
+			if err == io.EOF {
 				fmt.Println("CLOSING CONN", conn)
-				conn.Close()
 				break
 			}
 			fmt.Println("Error reading:", err.Error())
+			break
 		}
 
+		fmt.Println("READING", msg)
 		conn.Write([]byte("+PONG\r\n"))
 	}
+}
+
+func parseConnection(conn net.Conn) ([]byte, error) {
+	reader := bufio.NewReader(conn)
+	dataType, err := reader.ReadByte()
+	msg := []byte("")
+
+	if err != nil {
+		return []byte(""), err
+	}
+
+	msg, err = []byte(""), nil
+
+	switch string(dataType) {
+	case "+":
+		msg, err = reader.ReadBytes('\n')
+	case "-":
+		msg, err = reader.ReadBytes('\n')
+	case "*":
+		msg, err = reader.ReadBytes('\n')
+	default:
+		err = fmt.Errorf("Invalid start of response. Unknown data type: %b", dataType)
+	}
+
+	return msg, err
 }
