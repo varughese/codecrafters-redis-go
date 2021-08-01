@@ -106,6 +106,10 @@ func parseRedisDatatype(reader *bufio.Reader) ([]byte, error) {
 		}
 
 		msg, err = reader.ReadBytes('\n')
+	case "\r":
+	case "\n":
+		// If the byte is part of a CLRF, return empty
+		return msg, err
 	default:
 		err = fmt.Errorf("Invalid start of response. Unknown data type: %s", string(dataType))
 	}
