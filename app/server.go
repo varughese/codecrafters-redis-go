@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 )
 
 func main() {
@@ -58,6 +59,11 @@ func handleRequest(conn net.Conn) {
 
 func parseConnection(conn net.Conn) ([]byte, error) {
 	reader := bufio.NewReader(conn)
+
+	return parseRedisDatatype(reader)
+}
+
+func parseRedisDatatype(reader *bufio.Reader) ([]byte, error) {
 	dataType, err := reader.ReadByte()
 	msg := []byte("")
 
@@ -72,11 +78,38 @@ func parseConnection(conn net.Conn) ([]byte, error) {
 		msg, err = reader.ReadBytes('\n')
 	case "-":
 		msg, err = reader.ReadBytes('\n')
+	case "$":
+		l, err := reader.ReadBytes('\n')
+		// trim off the \r\n
+		stringByteLength, err := strconv.Atoi(string(l[:len(l)-2]))
+
+		if err != nil {
+			return msg, err
+		}
+
+		msg = make([]byte, stringByteLength)
+		reader.Read(msg)
 	case "*":
+		l, _ := reader.ReadByte()
+		length, err := strconv.Atoi(string(l))
+
+		if err != nil {
+			return msg, err
+		}
+
+		for i := 0; i < length; i++ {
+			currentMsg, err := parseRedisDatatype(reader)
+			if err != nil {
+				return msg, err
+			}
+			fmt.Println(currentMsg)
+		}
+
 		msg, err = reader.ReadBytes('\n')
 	default:
 		err = fmt.Errorf("Invalid start of response. Unknown data type: %b", dataType)
 	}
 
 	return msg, err
+
 }
