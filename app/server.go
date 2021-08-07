@@ -222,6 +222,7 @@ func set(cmd *command, conn net.Conn) {
 	if hasExpiry {
 		expiryTimeMilliseconds := cmd.args[3].integer
 		entry.expiryTime = time.Now().Add(time.Duration(expiryTimeMilliseconds) * time.Millisecond)
+		fmt.Println("Curren time", time.Now())
 		fmt.Println("Should expire at ", entry.expiryTime)
 	}
 	DATABASE[string(key)] = entry
@@ -235,6 +236,7 @@ func get(cmd *command, conn net.Conn) {
 	entry := DATABASE[string(key)]
 	value := entry.data
 	if entry.hasExpiry {
+		fmt.Println("Curren time", time.Now())
 		fmt.Println("Expires at ", entry.expiryTime)
 		if entry.expiryTime.Before(currentTime) {
 			value = []byte("")
