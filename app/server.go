@@ -200,6 +200,10 @@ func parseRedisDatatype(reader *bufio.Reader) (*redisData, error) {
 }
 
 func serialize(str []byte) []byte {
+	if str == nil {
+		// NULL in RESP:
+		return []byte("$-1\r\n")
+	}
 	start := []byte("$" + strconv.Itoa(len(str)) + "\r\n")
 	res := append(append(start, str...), []byte("\r\n")...)
 	return res
@@ -242,7 +246,7 @@ func get(cmd *command, conn net.Conn) {
 		fmt.Println("Curren time", time.Now())
 		fmt.Println("Expires at ", entry.expiryTime)
 		if entry.expiryTime.Before(currentTime) {
-			value = []byte("")
+			value = nil
 			delete(DATABASE, string(key))
 		}
 	}
