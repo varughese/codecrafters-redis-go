@@ -163,11 +163,9 @@ func parseRedisDatatype(reader *bufio.Reader) (*redisData, error) {
 		// If the byte is part of a CLRF, return empty
 		return &data, err
 	default:
-		err = nil
-		// err = fmt.Errorf("Invalid start of response. Unknown data type: %s", string(dataType))
+		err = fmt.Errorf("Invalid start of response. Unknown data type: %s", string(dataType))
 	}
 
-	fmt.Println(string(msg))
 	return &data, err
 
 }
