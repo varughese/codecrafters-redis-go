@@ -80,7 +80,11 @@ func parseRedisCommand(rawRedisData *redisData) *command {
 		return &cmd
 	}
 	commandString := rawRedisData.array[0].bulkString
-	args := rawRedisData.array[1].bulkString
+	var args []byte = nil
+
+	if len(rawRedisData.array) > 1 {
+		args = rawRedisData.array[1].bulkString
+	}
 
 	switch string(commandString) {
 	case "ECHO":
