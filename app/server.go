@@ -206,9 +206,14 @@ func ping(cmd *command, conn net.Conn) {
 func set(cmd *command, conn net.Conn) {
 	key := cmd.args[0].bulkString
 	value := cmd.args[1].bulkString
+	hasExpiry := len(cmd.args) == 4
 	entry := entry{
 		data:      value,
-		hasExpiry: false,
+		hasExpiry: hasExpiry,
+	}
+	if hasExpiry {
+		expiryTimeMilliseconds := cmd.args[4].integer
+		entry.expiryTime = time.Now().Add(time.Duration(expiryTimeMilliseconds) * time.Millisecond)
 	}
 	DATABASE[string(key)] = entry
 	fmt.Println("Inserted", value, "at ", string(key))
@@ -219,5 +224,6 @@ func get(cmd *command, conn net.Conn) {
 	key := cmd.args[0].bulkString
 	entry := DATABASE[string(key)]
 	value := entry.data
+	fmt.Println("Expiry time", entry.expiryTime)
 	conn.Write(serialize(value))
 }
