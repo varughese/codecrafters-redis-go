@@ -116,7 +116,6 @@ func parseRedisDatatype(reader *bufio.Reader) (*redisData, error) {
 	}
 
 	msg, err = []byte(""), nil
-	fmt.Println(string(dataType))
 
 	switch string(dataType) {
 	case "+":
