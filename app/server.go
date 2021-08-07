@@ -166,6 +166,7 @@ func parseRedisDatatype(reader *bufio.Reader) (*redisData, error) {
 		// err = fmt.Errorf("Invalid start of response. Unknown data type: %s", string(dataType))
 	}
 
+	fmt.Println(string(msg))
 	return &data, err
 
 }
