@@ -30,7 +30,7 @@ func main() {
 type COMMAND_ID int
 
 const (
-	PONG COMMAND_ID = iota
+	PING COMMAND_ID = iota
 	ECHO
 )
 
@@ -39,12 +39,20 @@ type command struct {
 	args []byte
 }
 
+func (cmd *command) run(conn net.Conn) {
+	if cmd.id == ECHO {
+		echo(cmd, conn)
+	}
+	if cmd.id == PING {
+		ping(cmd, conn)
+	}
+}
+
 func handleRequest(conn net.Conn) {
 	defer conn.Close()
 	for {
-		msg, cmd, err := parseConnection(conn)
-		fmt.Println(cmd)
-		if len(msg) == 0 || err == io.EOF {
+		cmd, err := parseConnection(conn)
+		if cmd == nil || err == io.EOF {
 			fmt.Println("CLOSING CONN", conn)
 			break
 		}
@@ -53,31 +61,51 @@ func handleRequest(conn net.Conn) {
 			break
 		}
 
-		if cmd.id == ECHO {
-			start := []byte("$" + strconv.Itoa(len(msg)) + "\r\n")
-			res := append(append(start, msg...), []byte("\r\n")...)
-			conn.Write([]byte(res))
-		} else if cmd.id == PONG {
-			conn.Write([]byte("+PONG\r\n"))
-		}
-
-		fmt.Println("READING", msg)
+		cmd.run(conn)
 	}
 }
 
-func parseConnection(conn net.Conn) ([]byte, *command, error) {
+func parseConnection(conn net.Conn) (*command, error) {
 	reader := bufio.NewReader(conn)
-
-	return parseRedisDatatype(reader)
+	rawRedisData, err := parseRedisDatatype(reader)
+	return parseRedisCommand(rawRedisData), err
 }
 
-func parseRedisDatatype(reader *bufio.Reader) ([]byte, *command, error) {
+func parseRedisCommand(rawRedisData *redisData) *command {
+	if len(rawRedisData.array) < 1 {
+		return nil
+	}
+	commandString := rawRedisData.array[0].bulkString
+	args := rawRedisData.array[1].bulkString
+
+	cmd := command{}
+
+	switch string(commandString) {
+	case "ECHO":
+		cmd.id = ECHO
+		cmd.args = args
+	default:
+		cmd.id = PING
+	}
+
+	return &cmd
+}
+
+type redisData struct {
+	simpleString []byte
+	errorString  []byte
+	bulkString   []byte
+	integer      int
+	array        []redisData
+}
+
+func parseRedisDatatype(reader *bufio.Reader) (*redisData, error) {
 	dataType, err := reader.ReadByte()
 	msg := []byte("")
-	cmd := command{id: PONG, args: nil}
+	data := redisData{}
 
 	if err != nil {
-		return []byte(""), &cmd, err
+		return &data, err
 	}
 
 	msg, err = []byte(""), nil
@@ -85,50 +113,65 @@ func parseRedisDatatype(reader *bufio.Reader) ([]byte, *command, error) {
 	switch string(dataType) {
 	case "+":
 		msg, err = reader.ReadBytes('\n')
+		data.simpleString = msg
 	case "-":
 		msg, err = reader.ReadBytes('\n')
+		data.errorString = msg
 	case "$":
 		l, err := reader.ReadBytes('\n')
 		// trim off the \r\n
 		stringByteLength, err := strconv.Atoi(string(l[:len(l)-2]))
 
 		if err != nil {
-			return msg, &cmd, err
+			return &data, err
 		}
 
 		msg = make([]byte, stringByteLength)
 		reader.Read(msg)
+		data.bulkString = msg
 	case "*":
 		l, err := reader.ReadBytes('\n')
 		// trim off the \r\n
 		length, err := strconv.Atoi(string(l[:len(l)-2]))
 
 		if err != nil {
-			return msg, &cmd, err
+			return &data, err
 		}
 
+		var resultArray []redisData = make([]redisData, length)
 		for i := 0; i < length; i++ {
-			msg, _, err = parseRedisDatatype(reader)
+			redisData, err := parseRedisDatatype(reader)
 			if err != nil {
-				return msg, &cmd, err
+				return redisData, err
 			}
-			if i == 1 {
-				cmd.id = ECHO
-			} else {
-				cmd.args = msg
-			}
-			fmt.Println(string(msg))
-			// read til next delimiter
+			resultArray[i] = *redisData
+
+			// Read til next delimiter
 			reader.ReadBytes('\n')
 		}
+		data.array = resultArray
 	case "\r":
 	case "\n":
 		// If the byte is part of a CLRF, return empty
-		return msg, &cmd, err
+		return &data, err
 	default:
 		err = fmt.Errorf("Invalid start of response. Unknown data type: %s", string(dataType))
 	}
 
-	return msg, &cmd, err
+	return &data, err
 
+}
+
+func serialize(str []byte) []byte {
+	start := []byte("$" + strconv.Itoa(len(str)) + "\r\n")
+	res := append(append(start, str...), []byte("\r\n")...)
+	return res
+}
+
+func echo(cmd *command, conn net.Conn) {
+	conn.Write(serialize(cmd.args))
+}
+
+func ping(cmd *command, conn net.Conn) {
+	conn.Write([]byte("+PONG\r\n"))
 }
