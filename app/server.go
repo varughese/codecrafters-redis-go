@@ -221,9 +221,10 @@ func set(cmd *command, conn net.Conn) {
 	}
 	if hasExpiry {
 		expiryTimeMilliseconds := cmd.args[3].integer
-		entry.expiryTime = time.Now().Add(time.Duration(expiryTimeMilliseconds) * time.Millisecond)
+		entry.expiryTime = time.Now().Add(time.Millisecond * time.Duration(expiryTimeMilliseconds))
+		fmt.Println("ms:", expiryTimeMilliseconds)
 		fmt.Println("Curren time", time.Now())
-		fmt.Println("Should expire at ", entry.expiryTime)
+		fmt.Println("Expire at  ", entry.expiryTime)
 	}
 	DATABASE[string(key)] = entry
 	fmt.Println("Inserted", value, "at ", string(key))
