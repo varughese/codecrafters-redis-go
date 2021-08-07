@@ -8,13 +8,19 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"time"
 )
 
-var DATABASE map[string][]byte
+type entry struct {
+	data       []byte
+	expiryTime time.Time
+	hasExpiry  bool
+}
+
+var DATABASE map[string]entry
 
 func main() {
-
-	DATABASE = make(map[string][]byte)
+	DATABASE = make(map[string]entry)
 
 	l, err := net.Listen("tcp", "0.0.0.0:6379")
 	if err != nil {
@@ -200,13 +206,18 @@ func ping(cmd *command, conn net.Conn) {
 func set(cmd *command, conn net.Conn) {
 	key := cmd.args[0].bulkString
 	value := cmd.args[1].bulkString
-	DATABASE[string(key)] = value
+	entry := entry{
+		data:      value,
+		hasExpiry: false,
+	}
+	DATABASE[string(key)] = entry
 	fmt.Println("Inserted", value, "at ", string(key))
 	conn.Write([]byte("+OK\r\n"))
 }
 
 func get(cmd *command, conn net.Conn) {
 	key := cmd.args[0].bulkString
-	value := DATABASE[string(key)]
+	entry := DATABASE[string(key)]
+	value := entry.data
 	conn.Write(serialize(value))
 }
