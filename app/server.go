@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -86,7 +87,7 @@ func parseRedisCommand(rawRedisData *redisData) *command {
 		args = rawRedisData.array[1].bulkString
 	}
 
-	switch string(commandString) {
+	switch string(bytes.ToUpper(commandString)) {
 	case "ECHO":
 		cmd.id = ECHO
 		cmd.args = args
