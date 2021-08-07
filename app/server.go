@@ -144,6 +144,14 @@ func parseRedisDatatype(reader *bufio.Reader) (*redisData, error) {
 	case "-":
 		msg, err = reader.ReadBytes('\n')
 		data.errorString = msg
+	case ":":
+		msg, err = reader.ReadBytes('\n')
+		parsedInt, err := strconv.Atoi(string(msg[:len(msg)-2]))
+		if err != nil {
+			err = fmt.Errorf("Failed to parse int from %s", msg)
+			return &data, err
+		}
+		data.integer = parsedInt
 	case "$":
 		l, err := reader.ReadBytes('\n')
 		// trim off the \r\n
@@ -212,7 +220,7 @@ func set(cmd *command, conn net.Conn) {
 		hasExpiry: hasExpiry,
 	}
 	if hasExpiry {
-		expiryTimeMilliseconds := cmd.args[4].integer
+		expiryTimeMilliseconds := cmd.args[3].integer
 		entry.expiryTime = time.Now().Add(time.Duration(expiryTimeMilliseconds) * time.Millisecond)
 	}
 	DATABASE[string(key)] = entry
@@ -221,9 +229,15 @@ func set(cmd *command, conn net.Conn) {
 }
 
 func get(cmd *command, conn net.Conn) {
+	currentTime := time.Now()
 	key := cmd.args[0].bulkString
 	entry := DATABASE[string(key)]
 	value := entry.data
-	fmt.Println("Expiry time", entry.expiryTime)
+	if entry.hasExpiry {
+		if entry.expiryTime.Before(currentTime) {
+			value = []byte("")
+			delete(DATABASE, string(key))
+		}
+	}
 	conn.Write(serialize(value))
 }
