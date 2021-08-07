@@ -222,7 +222,7 @@ func set(cmd *command, conn net.Conn) {
 		hasExpiry: hasExpiry,
 	}
 	if hasExpiry {
-		expiryTimeMilliseconds := cmd.args[3].integer
+		expiryTimeMilliseconds, _ := strconv.Atoi(string(cmd.args[3].bulkString))
 		entry.expiryTime = time.Now().Add(time.Millisecond * time.Duration(expiryTimeMilliseconds))
 		fmt.Println("ms:", expiryTimeMilliseconds)
 		fmt.Println("Curren time", time.Now())
