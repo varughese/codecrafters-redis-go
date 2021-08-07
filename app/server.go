@@ -10,7 +10,12 @@ import (
 	"strconv"
 )
 
+var DATABASE map[string][]byte
+
 func main() {
+
+	DATABASE = make(map[string][]byte)
+
 	l, err := net.Listen("tcp", "0.0.0.0:6379")
 	if err != nil {
 		fmt.Println("Failed to bind to port 6379")
@@ -33,11 +38,13 @@ type COMMAND_ID int
 const (
 	PING COMMAND_ID = iota
 	ECHO
+	SET
+	GET
 )
 
 type command struct {
 	id   COMMAND_ID
-	args []byte
+	args []redisData
 }
 
 func (cmd *command) run(conn net.Conn) {
@@ -46,6 +53,12 @@ func (cmd *command) run(conn net.Conn) {
 	}
 	if cmd.id == PING {
 		ping(cmd, conn)
+	}
+	if cmd.id == SET {
+		set(cmd, conn)
+	}
+	if cmd.id == GET {
+		get(cmd, conn)
 	}
 }
 
@@ -81,16 +94,14 @@ func parseRedisCommand(rawRedisData *redisData) *command {
 		return &cmd
 	}
 	commandString := rawRedisData.array[0].bulkString
-	var args []byte = nil
-
-	if len(rawRedisData.array) > 1 {
-		args = rawRedisData.array[1].bulkString
-	}
+	args := rawRedisData.array[1:]
 
 	switch string(bytes.ToUpper(commandString)) {
 	case "ECHO":
 		cmd.id = ECHO
 		cmd.args = args
+	case "SET":
+		cmd.id = SET
 	default:
 		cmd.id = PING
 	}
@@ -176,9 +187,20 @@ func serialize(str []byte) []byte {
 }
 
 func echo(cmd *command, conn net.Conn) {
-	conn.Write(serialize(cmd.args))
+	conn.Write(serialize(cmd.args[0].bulkString))
 }
 
 func ping(cmd *command, conn net.Conn) {
+	conn.Write([]byte("+PONG\r\n"))
+}
+
+func set(cmd *command, conn net.Conn) {
+	key := cmd.args[0].bulkString
+	value := cmd.args[1].bulkString
+	fmt.Println(key, value)
+	conn.Write([]byte("+OK\r\n"))
+}
+
+func get(cmd *command, conn net.Conn) {
 	conn.Write([]byte("+PONG\r\n"))
 }
