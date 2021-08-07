@@ -94,16 +94,19 @@ func parseRedisCommand(rawRedisData *redisData) *command {
 		return &cmd
 	}
 	commandString := rawRedisData.array[0].bulkString
-	args := rawRedisData.array[1:]
+	cmd.args = rawRedisData.array[1:]
 
 	switch string(bytes.ToUpper(commandString)) {
 	case "ECHO":
 		cmd.id = ECHO
-		cmd.args = args
 	case "SET":
 		cmd.id = SET
-	default:
+	case "GET":
+		cmd.id = GET
+	case "PING":
 		cmd.id = PING
+	default:
+		cmd = command{}
 	}
 
 	return &cmd
@@ -197,10 +200,13 @@ func ping(cmd *command, conn net.Conn) {
 func set(cmd *command, conn net.Conn) {
 	key := cmd.args[0].bulkString
 	value := cmd.args[1].bulkString
-	fmt.Println(key, value)
+	DATABASE[string(key)] = value
+	fmt.Println("Inserted", value, "at ", string(key))
 	conn.Write([]byte("+OK\r\n"))
 }
 
 func get(cmd *command, conn net.Conn) {
-	conn.Write([]byte("+PONG\r\n"))
+	key := cmd.args[0].bulkString
+	value := DATABASE[string(key)]
+	conn.Write(serialize(value))
 }
