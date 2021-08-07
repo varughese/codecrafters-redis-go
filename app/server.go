@@ -52,7 +52,6 @@ func handleRequest(conn net.Conn) {
 	defer conn.Close()
 	for {
 		cmd, err := parseConnection(conn)
-		fmt.Println("GOT CMD", cmd)
 		if cmd == nil || err == io.EOF {
 			fmt.Println("CLOSING CONN", conn)
 			break
@@ -61,6 +60,8 @@ func handleRequest(conn net.Conn) {
 			fmt.Println("Error reading:", err)
 			break
 		}
+
+		fmt.Println("GOT CMD", cmd)
 
 		cmd.run(conn)
 	}
@@ -156,7 +157,8 @@ func parseRedisDatatype(reader *bufio.Reader) (*redisData, error) {
 		// If the byte is part of a CLRF, return empty
 		return &data, err
 	default:
-		err = fmt.Errorf("Invalid start of response. Unknown data type: %s", string(dataType))
+		err = nil
+		// err = fmt.Errorf("Invalid start of response. Unknown data type: %s", string(dataType))
 	}
 
 	return &data, err
