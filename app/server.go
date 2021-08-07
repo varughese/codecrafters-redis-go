@@ -52,6 +52,7 @@ func handleRequest(conn net.Conn) {
 	defer conn.Close()
 	for {
 		cmd, err := parseConnection(conn)
+		fmt.Println("GOT CMD", cmd)
 		if cmd == nil || err == io.EOF {
 			fmt.Println("CLOSING CONN", conn)
 			break
@@ -72,13 +73,13 @@ func parseConnection(conn net.Conn) (*command, error) {
 }
 
 func parseRedisCommand(rawRedisData *redisData) *command {
+	cmd := command{id: PING}
+
 	if len(rawRedisData.array) < 1 {
-		return nil
+		return &cmd
 	}
 	commandString := rawRedisData.array[0].bulkString
 	args := rawRedisData.array[1].bulkString
-
-	cmd := command{}
 
 	switch string(commandString) {
 	case "ECHO":
